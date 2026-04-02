@@ -26,7 +26,7 @@
         </a>
         <div class="nav-links">
             <?php if (auth()->loggedIn()) : ?>
-                <a href="/dashboard" class="nav-link nav-link--primary" id="nav-dashboard">Dashboard</a>
+                <a href="/user/dashboard" class="nav-link nav-link--primary" id="nav-dashboard">Dashboard</a>
             <?php else : ?>
                 <a href="<?= url_to('login') ?>" class="nav-link nav-link--ghost" id="nav-login">Sign in</a>
                 <a href="<?= url_to('register') ?>" class="nav-link nav-link--primary" id="nav-register">Get Started</a>
@@ -49,7 +49,7 @@
             </p>
             <div class="hero-actions">
                 <?php if (auth()->loggedIn()) : ?>
-                    <a href="/dashboard" class="btn btn--primary" id="hero-dashboard">
+                    <a href="/user/dashboard" class="btn btn--primary" id="hero-dashboard">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                             <polyline points="9 22 9 12 15 12 15 22"/>

@@ -8,7 +8,7 @@ class Dashboard extends BaseController
     {
         $user = auth()->user();
 
-        return view('dashboard/index', [
+        return view('user/dashboard/index', [
             'user' => $user,
         ]);
     }
