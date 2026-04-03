@@ -2,6 +2,7 @@
 
 namespace Config;
 
+use App\Services\StudentService;
 use CodeIgniter\Config\BaseService;
 
 /**
@@ -19,14 +20,15 @@ use CodeIgniter\Config\BaseService;
  */
 class Services extends BaseService
 {
-    /*
-     * public static function example($getShared = true)
-     * {
-     *     if ($getShared) {
-     *         return static::getSharedInstance('example');
-     *     }
-     *
-     *     return new \CodeIgniter\Example();
-     * }
-     */
+    public static function studentService(bool $getShared = true): StudentService
+    {
+        if ($getShared) {
+            /** @var StudentService $service */
+            $service = static::getSharedInstance('studentService');
+
+            return $service;
+        }
+
+        return new StudentService();
+    }
 }
