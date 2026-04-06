@@ -41,6 +41,84 @@ class StudentModel extends Model
     protected $updatedField   = 'updated_at';
     protected $deletedField   = 'deleted_at';
 
+    public function paginateWithProgram(int $perPage = 10, ?string $search = null): array
+    {
+        $search = trim((string) $search);
+
+        $query = $this->select('students.*, programs.program_name, programs.program_code')
+            ->join('programs', 'programs.id = students.program_id', 'left');
+
+        if ($search !== '') {
+            $keywords = preg_split('/\s+/', $search) ?: [];
+
+            $query->groupStart()
+                ->like('students.student_id', $search)
+                ->orLike('students.email', $search)
+                ->orLike('students.first_name', $search)
+                ->orLike('students.last_name', $search)
+                ->groupEnd();
+
+            if (count($keywords) >= 2) {
+                $query->groupStart()
+                    ->like('students.first_name', $keywords[0])
+                    ->like('students.last_name', $keywords[1])
+                    ->groupEnd();
+            }
+        }
+
+        $students = $query
+            ->orderBy('students.created_at', 'DESC')
+            ->paginate($perPage);
+
+        return [
+            'students' => $students,
+            'pager'    => $this->pager,
+        ];
+    }
+
+    public function findWithProgramById(int $id): ?array
+    {
+        return $this->select('students.*, programs.program_name, programs.program_code')
+            ->join('programs', 'programs.id = students.program_id', 'left')
+            ->where('students.id', $id)
+            ->first();
+    }
+
+    public function emailExists(?string $email, ?int $ignoreId = null): bool
+    {
+        if ($email === null || $email === '') {
+            return false;
+        }
+
+        $builder = $this->withDeleted()->where('email', $email);
+
+        if ($ignoreId !== null) {
+            $builder->where('id !=', $ignoreId);
+        }
+
+        return $builder->first() !== null;
+    }
+
+    public function generateNextStudentId(string $prefix = 'STU'): string
+    {
+        $year         = date('Y');
+        $fullPrefix   = $prefix . $year;
+        $nextSequence = 1;
+
+        $lastRecord = $this->withDeleted()
+            ->select('student_id')
+            ->like('student_id', $fullPrefix, 'after')
+            ->orderBy('student_id', 'DESC')
+            ->first();
+
+        if (is_array($lastRecord) && isset($lastRecord['student_id'])) {
+            $lastSequence = (int) substr($lastRecord['student_id'], -4);
+            $nextSequence = $lastSequence + 1;
+        }
+
+        return $fullPrefix . str_pad((string) $nextSequence, 4, '0', STR_PAD_LEFT);
+    }
+
     public function baseListQuery(?string $search = null): BaseBuilder
     {
         $builder = $this->builder()

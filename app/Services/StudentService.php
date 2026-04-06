@@ -38,38 +38,7 @@ class StudentService
 
     public function paginateStudents(int $perPage = 10, ?string $search = null): array
     {
-        $search = trim((string) $search);
-
-        $query = $this->studentModel
-            ->select('students.*, programs.program_name, programs.program_code')
-            ->join('programs', 'programs.id = students.program_id', 'left');
-
-        if ($search !== '') {
-            $keywords = preg_split('/\s+/', $search) ?: [];
-
-            $query->groupStart()
-                ->like('students.student_id', $search)
-                ->orLike('students.email', $search)
-                ->orLike('students.first_name', $search)
-                ->orLike('students.last_name', $search)
-                ->groupEnd();
-
-            if (count($keywords) >= 2) {
-                $query->groupStart()
-                    ->like('students.first_name', $keywords[0])
-                    ->like('students.last_name', $keywords[1])
-                    ->groupEnd();
-            }
-        }
-
-        $students = $query
-            ->orderBy('students.created_at', 'DESC')
-            ->paginate($perPage);
-
-        return [
-            'students' => $students,
-            'pager'    => $this->studentModel->pager,
-        ];
+        return $this->studentModel->paginateWithProgram($perPage, $search);
     }
 
     public function getProgramsForDropdown(): array
@@ -79,10 +48,7 @@ class StudentService
 
     public function getStudentById(int $id): ?array
     {
-        $student = $this->studentModel->select('students.*, programs.program_name, programs.program_code')
-            ->join('programs', 'programs.id = students.program_id', 'left')
-            ->where('students.id', $id)
-            ->first();
+        $student = $this->studentModel->findWithProgramById($id);
 
         if ($student === null) {
             return null;
@@ -95,7 +61,7 @@ class StudentService
 
     public function createStudent(array $payload, ?UploadedFile $documentFile = null, ?string $documentType = null): int
     {
-        if ($this->emailExists($payload['email'] ?? null)) {
+        if ($this->studentModel->emailExists($payload['email'] ?? null)) {
             throw new DomainException('Email is already registered.');
         }
 
@@ -105,7 +71,7 @@ class StudentService
             $this->db->transBegin();
 
             try {
-                $payload['student_id'] = $this->generateStudentId();
+                $payload['student_id'] = $this->studentModel->generateNextStudentId();
                 $studentId = (int) $this->studentModel->insert($payload, true);
 
                 if ($studentId <= 0) {
@@ -137,7 +103,7 @@ class StudentService
             throw new DomainException('Student not found.');
         }
 
-        if ($this->emailExists($payload['email'] ?? null, $id)) {
+        if ($this->studentModel->emailExists($payload['email'] ?? null, $id)) {
             throw new DomainException('Email is already registered.');
         }
 
@@ -175,27 +141,6 @@ class StudentService
         if (! $this->studentModel->delete($id)) {
             throw new RuntimeException('Failed to archive student.');
         }
-    }
-
-    private function generateStudentId(): string
-    {
-        $year   = date('Y');
-        $prefix = 'STU' . $year;
-
-        $lastRecord = $this->studentModel->withDeleted()
-            ->select('student_id')
-            ->like('student_id', $prefix, 'after')
-            ->orderBy('student_id', 'DESC')
-            ->first();
-
-        $nextSequence = 1;
-
-        if (is_array($lastRecord) && isset($lastRecord['student_id'])) {
-            $lastSequence = (int) substr($lastRecord['student_id'], -4);
-            $nextSequence = $lastSequence + 1;
-        }
-
-        return $prefix . str_pad((string) $nextSequence, 4, '0', STR_PAD_LEFT);
     }
 
     private function storeDocumentIfProvided(
@@ -269,21 +214,6 @@ class StudentService
         if (! in_array($mimeType, $allowedMimes, true)) {
             throw new DomainException('Invalid document MIME type.');
         }
-    }
-
-    private function emailExists(?string $email, ?int $ignoreId = null): bool
-    {
-        if ($email === null || $email === '') {
-            return false;
-        }
-
-        $builder = $this->studentModel->withDeleted()->where('email', $email);
-
-        if ($ignoreId !== null) {
-            $builder->where('id !=', $ignoreId);
-        }
-
-        return $builder->first() !== null;
     }
 
     private function isStudentIdDuplicateError(Throwable $exception): bool
